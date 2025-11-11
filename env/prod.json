@@ -1,0 +1,4 @@
+{
+  "API_BASE_URL": "https://api.example.com",
+  "AUTH_CHECK_ENDPOINT": "https://api.example.com/api/auth/check"
+}
