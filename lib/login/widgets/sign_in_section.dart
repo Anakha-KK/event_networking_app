@@ -6,6 +6,7 @@ import 'package:http/http.dart' as http;
 
 import '../../config/env.dart';
 import '../../home/home_page.dart';
+import '../../signup/sign_up_page.dart';
 import '../constants.dart';
 
 /// Card-like white area that hosts the email/password form and social CTAs.
@@ -428,7 +429,13 @@ class _SignInSectionState extends State<SignInSection> {
                       ),
                     ),
                     TextButton(
-                      onPressed: () {},
+                      onPressed: () {
+                        Navigator.of(context).push(
+                          MaterialPageRoute(
+                            builder: (_) => const SignUpPage(),
+                          ),
+                        );
+                      },
                       style: TextButton.styleFrom(
                         foregroundColor: kHeroBlue,
                         textStyle: const TextStyle(
