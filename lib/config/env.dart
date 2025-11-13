@@ -16,4 +16,9 @@ class EnvConfig {
     'AUTH_CHECK_ENDPOINT',
     defaultValue: '$apiBaseUrl/auth/check',
   );
+
+  static const signUpEndpoint = String.fromEnvironment(
+    'SIGN_UP_ENDPOINT',
+    defaultValue: '$apiBaseUrl/signup',
+  );
 }

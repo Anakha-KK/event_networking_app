@@ -1,5 +1,11 @@
-import 'package:flutter/material.dart';
+import 'dart:async';
+import 'dart:convert';
 
+import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+
+import '../config/env.dart';
+import '../home/home_page.dart';
 import '../login/constants.dart';
 import '../login/login_page.dart';
 
@@ -43,6 +49,7 @@ class _SignUpFormShellState extends State<_SignUpFormShell> {
   final TextEditingController _companyController = TextEditingController();
   final TextEditingController _jobTitleController = TextEditingController();
   bool _obscurePassword = true;
+  bool _isSubmitting = false;
   late final List<_TextFieldConfig> _fieldConfigs;
 
   @override
@@ -120,7 +127,7 @@ class _SignUpFormShellState extends State<_SignUpFormShell> {
               width: double.infinity,
               height: 50,
               child: ElevatedButton(
-                onPressed: () {},
+                onPressed: _isSubmitting ? null : _handleSubmit,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: kSignUpYellow,
                   foregroundColor: kHeroBlue,
@@ -133,7 +140,17 @@ class _SignUpFormShellState extends State<_SignUpFormShell> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
-                child: const Text('Sign Up'),
+                child: _isSubmitting
+                    ? const SizedBox(
+                        width: 22,
+                        height: 22,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2.4,
+                          valueColor:
+                              AlwaysStoppedAnimation<Color>(kHeroBlue),
+                        ),
+                      )
+                    : const Text('Sign Up'),
               ),
             ),
             const SizedBox(height: 20),
@@ -164,6 +181,126 @@ class _SignUpFormShellState extends State<_SignUpFormShell> {
           ],
         ),
       ),
+    );
+  }
+
+  Future<void> _handleSubmit() async {
+    final validationError = _validateInputs();
+    if (validationError != null) {
+      _showSnack(validationError);
+      return;
+    }
+
+    final firstName = _firstNameController.text.trim();
+    final lastName = _lastNameController.text.trim();
+    final payload = {
+      'name': '$firstName $lastName'.trim(),
+      'email': _emailController.text.trim(),
+      'password': _passwordController.text,
+      'first_name': firstName,
+      'last_name': lastName,
+      'job_title': _jobTitleController.text.trim(),
+      'company_name': _companyController.text.trim(),
+    };
+
+    setState(() => _isSubmitting = true);
+
+    try {
+      final response = await http
+          .post(
+            Uri.parse(EnvConfig.signUpEndpoint),
+            headers: const {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode(payload),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (!mounted) return;
+
+      final status = response.statusCode;
+      final isSuccess = status == 200 || status == 201;
+      final message = _extractMessage(
+        response.body,
+        fallback:
+            isSuccess ? 'Account created successfully.' : 'Sign-up failed ($status).',
+      );
+
+      if (isSuccess) {
+        _showSnack(message, isError: false);
+        _goToHomePage();
+      } else {
+        _showSnack(message);
+      }
+    } on TimeoutException {
+      _showSnack('Request timed out. Please try again.');
+    } catch (error) {
+      _showSnack('Sign-up failed: $error');
+    } finally {
+      if (mounted) {
+        setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  String? _validateInputs() {
+    if (_firstNameController.text.trim().isEmpty) {
+      return 'First name is required.';
+    }
+    if (_lastNameController.text.trim().isEmpty) {
+      return 'Last name is required.';
+    }
+    final email = _emailController.text.trim();
+    if (email.isEmpty || !email.contains('@')) {
+      return 'Enter a valid email address.';
+    }
+    if (_passwordController.text.length < 6) {
+      return 'Password must be at least 6 characters.';
+    }
+    return null;
+  }
+
+  void _showSnack(String message, {bool isError = true}) {
+    if (!mounted) return;
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isError ? Colors.red[600] : Colors.green[600],
+      ),
+    );
+  }
+
+  String _extractMessage(String body, {required String fallback}) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        if (decoded['errors'] is Map<String, dynamic>) {
+          final errors = decoded['errors'] as Map<String, dynamic>;
+          for (final entry in errors.entries) {
+            final value = entry.value;
+            if (value is List && value.isNotEmpty) {
+              final first = value.first;
+              if (first is String && first.isNotEmpty) return first;
+            } else if (value is String && value.isNotEmpty) {
+              return value;
+            }
+          }
+        }
+        if (decoded['message'] is String && (decoded['message'] as String).isNotEmpty) {
+          return decoded['message'] as String;
+        }
+      }
+    } catch (_) {
+      // Ignore decoding issues and fall back to provided message.
+    }
+    return fallback;
+  }
+
+  void _goToHomePage() {
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const HomePage()),
+      (_) => false,
     );
   }
 
