@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:http/http.dart' as http;
 
 import '../../config/env.dart';
@@ -23,8 +24,15 @@ class _SignInSectionState extends State<SignInSection> {
   bool _rememberMe = false;
   bool _obscurePassword = true;
   bool _isSubmitting = false;
+  bool _isGoogleSubmitting = false;
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final GoogleSignIn _googleSignIn = GoogleSignIn(
+    scopes: const ['email'],
+    serverClientId: EnvConfig.googleServerClientId.isEmpty
+        ? null
+        : EnvConfig.googleServerClientId,
+  );
   late final FocusNode _emailFocusNode;
   late final FocusNode _passwordFocusNode;
 
@@ -197,6 +205,69 @@ class _SignInSectionState extends State<SignInSection> {
     } finally {
       if (mounted) {
         setState(() => _isSubmitting = false);
+      }
+    }
+  }
+
+  Future<void> _handleGoogleSignIn() async {
+    setState(() => _isGoogleSubmitting = true);
+
+    try {
+      // Always sign out first so users can pick a different Google account.
+      await _googleSignIn.signOut();
+      try {
+        await _googleSignIn.disconnect();
+      } catch (_) {
+        // Ignore disconnect errors when no session exists.
+      }
+
+      final account = await _googleSignIn.signIn();
+      if (account == null) {
+        _showSnack('Google sign-in was cancelled.');
+        return;
+      }
+
+      final auth = await account.authentication;
+      final idToken = auth.idToken;
+
+      if (idToken == null) {
+        _showSnack('Unable to retrieve Google token. Please try again.');
+        return;
+      }
+
+      final response = await http
+          .post(
+            Uri.parse(EnvConfig.googleSignInEndpoint),
+            headers: const {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+            },
+            body: jsonEncode({'id_token': idToken}),
+          )
+          .timeout(const Duration(seconds: 10));
+
+      if (!mounted) return;
+
+      final status = response.statusCode;
+      final isSuccess = status == 200 || status == 201;
+      final message = _extractMessage(
+        response.body,
+        fallback:
+            isSuccess ? 'Google sign-in successful.' : 'Google sign-in failed ($status).',
+      );
+
+      _showSnack(message, isError: !isSuccess);
+
+      if (isSuccess) {
+        _goToHomePage();
+      }
+    } on TimeoutException {
+      _showSnack('Google sign-in timed out. Please try again.');
+    } catch (error) {
+      _showSnack('Google sign-in failed: $error');
+    } finally {
+      if (mounted) {
+        setState(() => _isGoogleSubmitting = false);
       }
     }
   }
@@ -403,11 +474,13 @@ class _SignInSectionState extends State<SignInSection> {
                   ],
                 ),
                 const SizedBox(height: 20),
-                const _SocialButton(
+                _SocialButton(
                   icon: Icons.g_mobiledata,
                   label: 'Continue with Google',
                   iconColor: Color(0xFFEA4335),
                   iconSize: 34,
+                  onPressed: _handleGoogleSignIn,
+                  isLoading: _isGoogleSubmitting,
                 ),
                 const SizedBox(height: 14),
                 const _SocialButton(
@@ -462,12 +535,16 @@ class _SocialButton extends StatelessWidget {
     required this.label,
     required this.iconColor,
     this.iconSize = 28,
+    this.onPressed,
+    this.isLoading = false,
   });
 
   final IconData icon;
   final String label;
   final Color iconColor;
   final double iconSize;
+  final VoidCallback? onPressed;
+  final bool isLoading;
 
   @override
   Widget build(BuildContext context) {
@@ -486,13 +563,24 @@ class _SocialButton extends StatelessWidget {
             fontWeight: FontWeight.w600,
           ),
         ),
-        onPressed: () {},
+        onPressed: isLoading ? null : onPressed,
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, color: iconColor, size: iconSize),
-            const SizedBox(width: 12),
-            Text(label),
+            if (isLoading)
+              const SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  valueColor: AlwaysStoppedAnimation<Color>(kHeroBlue),
+                ),
+              )
+            else ...[
+              Icon(icon, color: iconColor, size: iconSize),
+              const SizedBox(width: 12),
+              Text(label),
+            ],
           ],
         ),
       ),
