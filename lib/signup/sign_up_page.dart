@@ -229,7 +229,12 @@ class _SignUpFormShellState extends State<_SignUpFormShell> {
 
       if (isSuccess) {
         _showSnack(message, isError: false);
-        _goToHomePage();
+        final token = _extractToken(response.body);
+        if (token.isEmpty) {
+          _showSnack('Account created but token missing. Please log in again.');
+          return;
+        }
+        _goToHomePage(token: token);
       } else {
         _showSnack(message);
       }
@@ -297,9 +302,24 @@ class _SignUpFormShellState extends State<_SignUpFormShell> {
     return fallback;
   }
 
-  void _goToHomePage() {
+  String _extractToken(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        final token = decoded['token'];
+        if (token is String && token.isNotEmpty) return token;
+        if (decoded['data'] is Map<String, dynamic>) {
+          final nested = (decoded['data'] as Map<String, dynamic>)['token'];
+          if (nested is String && nested.isNotEmpty) return nested;
+        }
+      }
+    } catch (_) {}
+    return '';
+  }
+
+  void _goToHomePage({String token = ''}) {
     Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const HomePage()),
+      MaterialPageRoute(builder: (_) => HomePage(authToken: token)),
       (_) => false,
     );
   }

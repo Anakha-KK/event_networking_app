@@ -132,7 +132,7 @@ class _SignInSectionState extends State<SignInSection> {
   }
 
   /// Uses backend response codes/messages to decide what the user sees next.
-  void _handleResponse(http.Response response) {
+  void _handleResponse(http.Response response, {required String token}) {
     final status = response.statusCode;
     bool isSuccess = false;
     String fallback;
@@ -158,16 +158,45 @@ class _SignInSectionState extends State<SignInSection> {
     _showSnack(message, isError: !isSuccess);
 
     if (isSuccess) {
-      _goToHomePage();
+      if (token.isEmpty) {
+        _showSnack(
+          'Login succeeded but no token was returned. Please try again.',
+        );
+        return;
+      }
+      _goToHomePage(token: token);
     }
   }
 
-  void _goToHomePage() {
+  void _goToHomePage({String token = ''}) {
     Navigator.of(context).pushReplacement(
       MaterialPageRoute(
-        builder: (_) => const HomePage(),
+        builder: (_) => HomePage(authToken: token),
       ),
     );
+  }
+
+  String _extractToken(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        final direct = decoded['token'];
+        if (direct is String && direct.isNotEmpty) return direct;
+
+        if (decoded['data'] is Map<String, dynamic>) {
+          final nested = (decoded['data'] as Map<String, dynamic>)['token'];
+          if (nested is String && nested.isNotEmpty) return nested;
+        }
+        final accessToken = decoded['access_token'];
+        if (accessToken is String && accessToken.isNotEmpty) return accessToken;
+        if (decoded['user'] is Map<String, dynamic>) {
+          final userMap = decoded['user'] as Map<String, dynamic>;
+          final userToken = userMap['token'];
+          if (userToken is String && userToken.isNotEmpty) return userToken;
+        }
+      }
+    } catch (_) {}
+    return '';
   }
 
   /// Handles sign-in CTA: validate form, hit API, then react to response.
@@ -197,7 +226,8 @@ class _SignInSectionState extends State<SignInSection> {
 
       if (!mounted) return;
 
-      _handleResponse(response);
+      final token = _extractToken(response.body);
+      _handleResponse(response, token: token);
     } on TimeoutException {
       _showSnack('Request timed out. Is the API running?');
     } catch (error) {
@@ -259,7 +289,12 @@ class _SignInSectionState extends State<SignInSection> {
       _showSnack(message, isError: !isSuccess);
 
       if (isSuccess) {
-        _goToHomePage();
+        final token = _extractToken(response.body);
+        if (token.isEmpty) {
+          _showSnack('Google sign-in succeeded but no token was returned.');
+          return;
+        }
+        _goToHomePage(token: token);
       }
     } on TimeoutException {
       _showSnack('Google sign-in timed out. Please try again.');
