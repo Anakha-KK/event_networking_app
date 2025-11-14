@@ -482,13 +482,6 @@ class _SignInSectionState extends State<SignInSection> {
                   onPressed: _handleGoogleSignIn,
                   isLoading: _isGoogleSubmitting,
                 ),
-                const SizedBox(height: 14),
-                const _SocialButton(
-                  icon: Icons.window_rounded,
-                  label: 'Continue with Microsoft',
-                  iconColor: Color(0xFF2F7FE0),
-                  iconSize: 30,
-                ),
                 const SizedBox(height: 24),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
