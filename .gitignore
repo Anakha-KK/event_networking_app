@@ -47,3 +47,5 @@ app.*.map.json
 # Local environment overrides (team members create their own copies)
 env/local*.json
 env/*.local.json
+env/dev.json
+env/prod.json
