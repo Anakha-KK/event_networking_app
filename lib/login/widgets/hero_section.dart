@@ -46,7 +46,7 @@ class HeroSection extends StatelessWidget {
             'EngageU $currentYear • Antwerp',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.85),
+              color: Colors.white.withValues(alpha: 0.85),
               fontSize: 16,
               fontWeight: FontWeight.w500,
             ),
@@ -66,7 +66,7 @@ class HeroSection extends StatelessWidget {
             'attendees at EngageU $currentYear.',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.9),
+              color: Colors.white.withValues(alpha: 0.9),
               fontSize: 16,
               height: 1.5,
             ),

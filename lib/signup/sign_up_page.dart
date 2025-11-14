@@ -451,7 +451,7 @@ class _SignUpHeader extends StatelessWidget {
             'EngageU $currentYear • Antwerp',
             textAlign: TextAlign.center,
             style: TextStyle(
-              color: Colors.white.withOpacity(0.7),
+              color: Colors.white.withValues(alpha: 0.7),
               fontSize: 15,
               fontWeight: FontWeight.w500,
             ),
