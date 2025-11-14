@@ -16,4 +16,18 @@ class EnvConfig {
     'AUTH_CHECK_ENDPOINT',
     defaultValue: '$apiBaseUrl/auth/check',
   );
+
+  static const signUpEndpoint = String.fromEnvironment(
+    'SIGN_UP_ENDPOINT',
+    defaultValue: '$apiBaseUrl/signup',
+  );
+
+  static const googleSignInEndpoint = String.fromEnvironment(
+    'GOOGLE_SIGN_IN_ENDPOINT',
+    defaultValue: '$apiBaseUrl/auth/google/mobile',
+  );
+
+  static const googleServerClientId = String.fromEnvironment(
+    'GOOGLE_SERVER_CLIENT_ID',
+  );
 }
